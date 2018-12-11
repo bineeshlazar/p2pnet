@@ -2,15 +2,25 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-kad-dht"
+	pstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p/p2p/discovery"
 	"github.com/multiformats/go-multiaddr"
-	mrand "math/rand"
-	"os"
 )
+
+type discoveryNotifee struct {
+}
+
+func (n *discoveryNotifee) HandlePeerFound(pi pstore.PeerInfo) {
+	fmt.Println("Found peer ", pi.ID.Pretty())
+}
 
 func main() {
 	help := flag.Bool("help", false, "Display Help")
@@ -28,7 +38,8 @@ func main() {
 	fmt.Printf("[*] Listening on: %s with port: %d\n", *listenHost, *port)
 
 	ctx := context.Background()
-	r := mrand.New(mrand.NewSource(int64(*port)))
+	// r := mrand.New(mrand.NewSource(int64(*port))) //Predictive ID
+	r := rand.Reader
 
 	// Creates a new RSA key pair for this host.
 	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
@@ -50,13 +61,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	// DHT ..
+	// _, err = dht.New(ctx, host)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println("")
+	fmt.Printf("[*] Your Bootstrap ID Is: /ip4/%s/tcp/%v/p2p/%s\n", *listenHost, *port, host.ID().Pretty())
+	// fmt.Println("")
 
-	_, err = dht.New(ctx, host)
+	//mDNS
+	ser, err := discovery.NewMdnsService(ctx, host, time.Second*5, "ubox")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("")
-	fmt.Printf("[*] Your Bootstrap ID Is: /ip4/%s/tcp/%v/p2p/%s\n", *listenHost, *port, host.ID().Pretty())
-	fmt.Println("")
+
+	n := &discoveryNotifee{}
+
+	ser.RegisterNotifee(n)
+
 	select {}
 }
