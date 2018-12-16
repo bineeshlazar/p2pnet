@@ -17,15 +17,15 @@ func (n *discoveryNotifee) HandlePeerFound(pi pstore.PeerInfo) {
 	n.PeerChan <- pi
 }
 
-func initMDNS(ctx context.Context, peerhost host.Host, rendezvous string) chan pstore.PeerInfo {
+func initMDNS(ctx context.Context, peerhost host.Host, rendezvous string) (<-chan pstore.PeerInfo, error) {
 	ser, err := discovery.NewMdnsService(ctx, peerhost, time.Minute, rendezvous)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	n := &discoveryNotifee{}
 	n.PeerChan = make(chan pstore.PeerInfo)
 
 	ser.RegisterNotifee(n)
-	return n.PeerChan
+	return n.PeerChan, nil
 }
