@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-crypto"
@@ -74,11 +75,6 @@ func (net *network) initMDNS() error {
 		for peer := range peerChan {
 			fmt.Print("DNS: ")
 			net.updatePeer(peer)
-			if err := net.host.Connect(net.ctx, peer); err != nil {
-				fmt.Println(err)
-			} else {
-				net.once.Do(net.pollDHTpeers)
-			}
 		}
 	}()
 
@@ -149,12 +145,7 @@ func main() {
 	if cfg.BootstrapPeer != nil {
 		fmt.Println("connecting to ", cfg.BootstrapPeer)
 		peerinfo, _ := pstore.InfoFromP2pAddr(cfg.BootstrapPeer)
-
-		if err := net.host.Connect(net.ctx, *peerinfo); err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Println("Connection established with bootstrap node:", *peerinfo)
-		}
+		net.updatePeer(*peerinfo)
 	}
 
 	err = net.initMDNS()
@@ -162,7 +153,33 @@ func main() {
 		panic(err)
 	}
 
-	net.once.Do(net.pollDHTpeers)
+	go func() {
+		for {
+			time.Sleep(time.Second * 3)
+			peerIDs := net.host.Peerstore().PeersWithAddrs()
+			if len(peerIDs) > 0 {
+
+				connected := 0
+
+				for _, id := range peerIDs {
+					peer := net.host.Peerstore().PeerInfo(id)
+					err := net.host.Connect(net.ctx, peer)
+					if err == nil {
+						addr, _ := pstore.InfoToP2pAddrs(&peer)
+						fmt.Println("Connected to ", addr)
+						connected++
+					}
+				}
+
+				if connected > 0 {
+					fmt.Println("polling DHT peers")
+					net.once.Do(net.pollDHTpeers)
+					break
+				}
+
+			}
+		}
+	}()
 
 	select {}
 }

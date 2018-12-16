@@ -18,7 +18,7 @@ func (n *discoveryNotifee) HandlePeerFound(pi pstore.PeerInfo) {
 }
 
 func initMDNS(ctx context.Context, peerhost host.Host, rendezvous string) (<-chan pstore.PeerInfo, error) {
-	ser, err := discovery.NewMdnsService(ctx, peerhost, time.Minute, rendezvous)
+	ser, err := discovery.NewMdnsService(ctx, peerhost, time.Hour, rendezvous)
 	if err != nil {
 		return nil, err
 	}
