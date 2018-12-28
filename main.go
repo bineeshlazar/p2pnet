@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
@@ -23,7 +22,6 @@ type network struct {
 	host         host.Host
 	cfg          *config
 	dhtDiscovery *discovery.RoutingDiscovery
-	once         sync.Once
 }
 
 func newNetwork(cfg *config) (*network, error) {
@@ -66,25 +64,22 @@ func newNetwork(cfg *config) (*network, error) {
 }
 
 func (net *network) initMDNS() error {
-	peerChan, err := initMDNS(net.ctx, net.host, net.cfg.RendezvousString)
+	err := initMDNS(net.ctx, net.host, net.cfg.RendezvousString, net)
 	if err != nil {
 		return err
 	}
-
-	go func() {
-		for peer := range peerChan {
-			fmt.Print("DNS: ")
-			net.updatePeer(peer)
-		}
-	}()
-
 	return nil
 }
 
 func (net *network) advertise(service string) {
-	discovery.Advertise(net.ctx, net.dhtDiscovery, service)
+	if net.dhtDiscovery == nil {
+		fmt.Println("DHT not initialized, skipping DHT advertise")
+	} else {
+		discovery.Advertise(net.ctx, net.dhtDiscovery, service)
+	}
 }
 
+// Find peers using DHT. Note that channel will get closed after peer search
 func (net *network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
 	if net.dhtDiscovery == nil {
 		return nil, errors.New("Invalid discovery object, DHT initialized?")
@@ -92,36 +87,10 @@ func (net *network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
 	return net.dhtDiscovery.FindPeers(net.ctx, service)
 }
 
-func (net *network) updatePeer(peer pstore.PeerInfo) {
+func (net *network) HandlePeerFound(peer pstore.PeerInfo) {
 
 	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
-	fmt.Println(net.host.Peerstore().PeerInfo(peer.ID))
-}
-
-func (net *network) pollDHTpeers() {
-
-	if net.dhtDiscovery == nil {
-		fmt.Println("DHT not initialized, skipping DHT polling")
-	} else {
-		net.advertise(net.cfg.RendezvousString)
-		peerChan, err := net.findPeers(net.cfg.RendezvousString)
-		if err != nil {
-			panic(err)
-		}
-
-		go func() {
-			for peer := range peerChan {
-
-				if peer.ID == net.host.ID() {
-					continue
-				}
-
-				fmt.Print("DHT: ")
-
-				net.updatePeer(peer)
-			}
-		}()
-	}
+	fmt.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
 }
 
 func main() {
@@ -143,9 +112,8 @@ func main() {
 	}
 
 	if cfg.BootstrapPeer != nil {
-		fmt.Println("connecting to ", cfg.BootstrapPeer)
 		peerinfo, _ := pstore.InfoFromP2pAddr(cfg.BootstrapPeer)
-		net.updatePeer(*peerinfo)
+		net.HandlePeerFound(*peerinfo)
 	}
 
 	err = net.initMDNS()
@@ -172,8 +140,8 @@ func main() {
 				}
 
 				if connected > 0 {
-					fmt.Println("polling DHT peers")
-					net.once.Do(net.pollDHTpeers)
+					fmt.Println("Advertising")
+					net.advertise(net.cfg.RendezvousString)
 					break
 				}
 
