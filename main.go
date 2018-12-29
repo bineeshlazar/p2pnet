@@ -11,9 +11,10 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-crypto"
-	discovery "github.com/libp2p/go-libp2p-discovery"
+	p2p "github.com/libp2p/go-libp2p-discovery"
 	host "github.com/libp2p/go-libp2p-host"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p/p2p/discovery"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -21,7 +22,7 @@ type network struct {
 	ctx          context.Context
 	host         host.Host
 	cfg          *config
-	dhtDiscovery *discovery.RoutingDiscovery
+	dhtDiscovery *p2p.RoutingDiscovery
 }
 
 func newNetwork(cfg *config) (*network, error) {
@@ -64,10 +65,13 @@ func newNetwork(cfg *config) (*network, error) {
 }
 
 func (net *network) initMDNS() error {
-	err := initMDNS(net.ctx, net.host, net.cfg.RendezvousString, net)
+
+	ser, err := discovery.NewMdnsService(net.ctx, net.host, time.Hour, net.cfg.RendezvousString)
 	if err != nil {
 		return err
 	}
+
+	ser.RegisterNotifee(net)
 	return nil
 }
 
@@ -75,7 +79,7 @@ func (net *network) advertise(service string) {
 	if net.dhtDiscovery == nil {
 		fmt.Println("DHT not initialized, skipping DHT advertise")
 	} else {
-		discovery.Advertise(net.ctx, net.dhtDiscovery, service)
+		p2p.Advertise(net.ctx, net.dhtDiscovery, service)
 	}
 }
 
