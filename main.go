@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-crypto"
 	p2p "github.com/libp2p/go-libp2p-discovery"
 	host "github.com/libp2p/go-libp2p-host"
+	libp2pdht "github.com/libp2p/go-libp2p-kad-dht"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	"github.com/multiformats/go-multiaddr"
@@ -22,6 +23,7 @@ type network struct {
 	ctx          context.Context
 	host         host.Host
 	cfg          *config
+	dht          *libp2pdht.IpfsDHT
 	dhtDiscovery *p2p.RoutingDiscovery
 }
 
@@ -54,9 +56,23 @@ func newNetwork(cfg *config) (*network, error) {
 		return nil, err
 	}
 
-	n.dhtDiscovery, err = initDHT(n.ctx, n.host, cfg.RendezvousString)
+	//Create dht and discovery handles
+	n.dht, err = libp2pdht.New(n.ctx, n.host)
 	if err != nil {
 		return nil, err
+	}
+	n.dhtDiscovery = p2p.NewRoutingDiscovery(n.dht)
+
+	// Bootstrap the DHT. In the default configuration, this spawns a Background
+	// thread that will refresh the peer table every five minutes.
+	err = n.dht.Bootstrap(n.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.BootstrapPeer != nil {
+		peerinfo, _ := pstore.InfoFromP2pAddr(cfg.BootstrapPeer)
+		n.HandlePeerFound(*peerinfo)
 	}
 
 	fmt.Printf("[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.listenHost, cfg.listenPort, n.host.ID().Pretty())
@@ -113,11 +129,6 @@ func main() {
 	net, err := newNetwork(cfg)
 	if err != nil {
 		panic(err)
-	}
-
-	if cfg.BootstrapPeer != nil {
-		peerinfo, _ := pstore.InfoFromP2pAddr(cfg.BootstrapPeer)
-		net.HandlePeerFound(*peerinfo)
 	}
 
 	err = net.initMDNS()
