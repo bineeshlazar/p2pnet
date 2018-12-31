@@ -1,12 +1,10 @@
-package main
+package p2pnet
 
 import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
@@ -139,30 +137,4 @@ func (net *network) HandlePeerFound(peer pstore.PeerInfo) {
 
 	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
 	fmt.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
-}
-
-func main() {
-	help := flag.Bool("help", false, "Display Help")
-	cfg := parseFlags()
-
-	if *help {
-		fmt.Printf("Simple example for peer discovery using mDNS. mDNS is great when you have multiple peers in local LAN")
-		fmt.Printf("Usage: \n   Run './bootnode'\nor Run './bootnode -host [host] -port [port] -peer [multiaddress] -rendezvous [string]'\n")
-
-		os.Exit(0)
-	}
-
-	fmt.Printf("[*] Listening on: %s with port: %d\n", cfg.listenHost, cfg.listenPort)
-
-	net, err := newNetwork(cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	err = net.initMDNS()
-	if err != nil {
-		panic(err)
-	}
-
-	select {}
 }
