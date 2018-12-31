@@ -77,6 +77,34 @@ func newNetwork(cfg *config) (*network, error) {
 
 	fmt.Printf("[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.listenHost, cfg.listenPort, n.host.ID().Pretty())
 
+	go func() {
+		for {
+			time.Sleep(time.Second * 3)
+			peerIDs := n.host.Peerstore().PeersWithAddrs()
+			if len(peerIDs) > 0 {
+
+				connected := 0
+
+				for _, id := range peerIDs {
+					peer := n.host.Peerstore().PeerInfo(id)
+					err := n.host.Connect(n.ctx, peer)
+					if err == nil {
+						addr, _ := pstore.InfoToP2pAddrs(&peer)
+						fmt.Println("Connected to ", addr)
+						connected++
+					}
+				}
+
+				if connected > 0 {
+					fmt.Println("Advertising")
+					n.advertise(n.cfg.RendezvousString)
+					break
+				}
+
+			}
+		}
+	}()
+
 	return n, nil
 }
 
@@ -135,34 +163,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	go func() {
-		for {
-			time.Sleep(time.Second * 3)
-			peerIDs := net.host.Peerstore().PeersWithAddrs()
-			if len(peerIDs) > 0 {
-
-				connected := 0
-
-				for _, id := range peerIDs {
-					peer := net.host.Peerstore().PeerInfo(id)
-					err := net.host.Connect(net.ctx, peer)
-					if err == nil {
-						addr, _ := pstore.InfoToP2pAddrs(&peer)
-						fmt.Println("Connected to ", addr)
-						connected++
-					}
-				}
-
-				if connected > 0 {
-					fmt.Println("Advertising")
-					net.advertise(net.cfg.RendezvousString)
-					break
-				}
-
-			}
-		}
-	}()
 
 	select {}
 }
