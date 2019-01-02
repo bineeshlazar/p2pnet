@@ -7,27 +7,29 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-crypto"
+	libp2p "github.com/libp2p/go-libp2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	p2p "github.com/libp2p/go-libp2p-discovery"
 	host "github.com/libp2p/go-libp2p-host"
 	libp2pdht "github.com/libp2p/go-libp2p-kad-dht"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
-	"github.com/multiformats/go-multiaddr"
+	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
-type network struct {
+//Network represents libp2p network layer.
+type Network struct {
 	ctx          context.Context
 	host         host.Host
-	cfg          *config
+	cfg          *Config
 	dht          *libp2pdht.IpfsDHT
 	dhtDiscovery *p2p.RoutingDiscovery
 }
 
-func newNetwork(cfg *config) (*network, error) {
+//NewNetwork creates a network handle
+func NewNetwork(cfg *Config) (*Network, error) {
 
-	n := &network{cfg: cfg}
+	n := &Network{cfg: cfg}
 
 	n.ctx = context.Background()
 
@@ -41,7 +43,7 @@ func newNetwork(cfg *config) (*network, error) {
 	}
 
 	// 0.0.0.0 will listen on any interface device.
-	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.listenHost, cfg.listenPort))
+	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.ListenHost, cfg.ListenPort))
 
 	// libp2p.New constructs a new libp2p Host.
 	// Other options can be added here.
@@ -73,7 +75,7 @@ func newNetwork(cfg *config) (*network, error) {
 		n.HandlePeerFound(*peerinfo)
 	}
 
-	fmt.Printf("[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.listenHost, cfg.listenPort, n.host.ID().Pretty())
+	fmt.Printf("[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, n.host.ID().Pretty())
 
 	go func() {
 		for {
@@ -95,7 +97,7 @@ func newNetwork(cfg *config) (*network, error) {
 
 				if connected > 0 {
 					fmt.Println("Advertising")
-					n.advertise(n.cfg.RendezvousString)
+					n.Advertise(n.cfg.RendezvousString)
 					break
 				}
 
@@ -106,7 +108,8 @@ func newNetwork(cfg *config) (*network, error) {
 	return n, nil
 }
 
-func (net *network) initMDNS() error {
+//InitMDNS initializes the MDNS discovery in the network
+func (net *Network) InitMDNS() error {
 
 	ser, err := discovery.NewMdnsService(net.ctx, net.host, time.Hour, net.cfg.RendezvousString)
 	if err != nil {
@@ -117,7 +120,8 @@ func (net *network) initMDNS() error {
 	return nil
 }
 
-func (net *network) advertise(service string) {
+//Advertise a service to DHT
+func (net *Network) Advertise(service string) {
 	if net.dhtDiscovery == nil {
 		fmt.Println("DHT not initialized, skipping DHT advertise")
 	} else {
@@ -126,14 +130,16 @@ func (net *network) advertise(service string) {
 }
 
 // Find peers using DHT. Note that channel will get closed after peer search
-func (net *network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
+func (net *Network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
 	if net.dhtDiscovery == nil {
 		return nil, errors.New("Invalid discovery object, DHT initialized?")
 	}
 	return net.dhtDiscovery.FindPeers(net.ctx, service)
 }
 
-func (net *network) HandlePeerFound(peer pstore.PeerInfo) {
+//HandlePeerFound is the Notifee interface for mdns discovery.
+//It can be also called to update the pee info found via other ways
+func (net *Network) HandlePeerFound(peer pstore.PeerInfo) {
 
 	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
 	fmt.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
