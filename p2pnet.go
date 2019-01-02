@@ -24,6 +24,7 @@ type Network struct {
 	cfg          *Config
 	dht          *libp2pdht.IpfsDHT
 	dhtDiscovery *p2p.RoutingDiscovery
+	addresses    []multiaddr.Multiaddr
 }
 
 //NewNetwork creates a network handle
@@ -42,7 +43,6 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		return nil, err
 	}
 
-	// 0.0.0.0 will listen on any interface device.
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.ListenHost, cfg.ListenPort))
 
 	// libp2p.New constructs a new libp2p Host.
@@ -75,7 +75,19 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		n.HandlePeerFound(*peerinfo)
 	}
 
-	fmt.Printf("[*] Your Multiaddress Is: /ip4/%s/tcp/%v/p2p/%s\n", cfg.ListenHost, cfg.ListenPort, n.host.ID().Pretty())
+	fmt.Printf("Host ID is %s\n", n.host.ID().Pretty())
+
+	//Save the our addresses
+	addrs := n.host.Addrs()
+	n.addresses = make([]multiaddr.Multiaddr, len(addrs))
+	for i, addr := range addrs {
+		ipfsAddr, err := multiaddr.NewMultiaddr("/p2p/" + n.host.ID().Pretty())
+		if err != nil {
+			panic(err)
+		}
+		peerAddr := addr.Encapsulate(ipfsAddr)
+		n.addresses[i] = peerAddr
+	}
 
 	go func() {
 		for {
@@ -129,8 +141,9 @@ func (net *Network) Advertise(service string) {
 	}
 }
 
-// Find peers using DHT. Note that channel will get closed after peer search
-func (net *Network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
+// FindPeers using DHT. Note that channel is not long standing.
+// It will get closed after each peer search
+func (net *Network) FindPeers(service string) (<-chan pstore.PeerInfo, error) {
 	if net.dhtDiscovery == nil {
 		return nil, errors.New("Invalid discovery object, DHT initialized?")
 	}
@@ -138,9 +151,25 @@ func (net *Network) findPeers(service string) (<-chan pstore.PeerInfo, error) {
 }
 
 //HandlePeerFound is the Notifee interface for mdns discovery.
-//It can be also called to update the pee info found via other ways
+//It can be also called to update the peer info found via other ways
 func (net *Network) HandlePeerFound(peer pstore.PeerInfo) {
 
 	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
 	fmt.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
+}
+
+//Addrs returns list of multi addresses we listen on
+func (net *Network) Addrs() []multiaddr.Multiaddr {
+	return net.addresses
+}
+
+//Host of network
+func (net *Network) Host() host.Host {
+	return net.host
+}
+
+//Discovery return low-level DHT discovery handle of network.
+//Most applications may not need this, they can use Advertise and FindPeers methods of Network
+func (net *Network) Discovery() *p2p.RoutingDiscovery {
+	return net.dhtDiscovery
 }
