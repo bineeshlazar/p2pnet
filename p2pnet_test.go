@@ -2,6 +2,7 @@ package p2pnet
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 )
@@ -46,4 +47,9 @@ func TestMDNS(t *testing.T) {
 	if !peerFound {
 		t.Errorf("Could not find peer n1 via MDNS")
 	}
+}
+
+func TestMain(m *testing.M) {
+	fmt.Println("Start Test")
+	os.Exit(m.Run())
 }
