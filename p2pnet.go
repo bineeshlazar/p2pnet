@@ -173,3 +173,8 @@ func (net *Network) Host() host.Host {
 func (net *Network) Discovery() *p2p.RoutingDiscovery {
 	return net.dhtDiscovery
 }
+
+//Context returns parent context of Network
+func (net *Network) Context() context.Context {
+	return net.ctx
+}
