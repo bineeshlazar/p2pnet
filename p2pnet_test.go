@@ -53,6 +53,9 @@ func TestMDNS(t *testing.T) {
 	if !peerFound {
 		t.Errorf("Could not find peer n1 via MDNS")
 	}
+
+	n1.Host().Close()
+	n2.Host().Close()
 }
 
 func TestDHT(t *testing.T) {
@@ -102,4 +105,8 @@ func TestDHT(t *testing.T) {
 	if peer.ID != provider.Host().ID() {
 		t.Errorf("could not find provider")
 	}
+
+	bootnode.Host().Close()
+	provider.Host().Close()
+	user.Host().Close()
 }

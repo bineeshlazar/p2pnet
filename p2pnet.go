@@ -25,6 +25,7 @@ type Network struct {
 	dht          *libp2pdht.IpfsDHT
 	dhtDiscovery *p2p.RoutingDiscovery
 	addresses    []multiaddr.Multiaddr
+	rpc          *RPC
 }
 
 //NewNetwork creates a network handle
@@ -88,6 +89,8 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		peerAddr := addr.Encapsulate(ipfsAddr)
 		n.addresses[i] = peerAddr
 	}
+
+	n.rpc = initRPC(n.host, cfg.RendezvousString)
 
 	go func() {
 		for {
@@ -177,4 +180,9 @@ func (net *Network) Discovery() *p2p.RoutingDiscovery {
 //Context returns parent context of Network
 func (net *Network) Context() context.Context {
 	return net.ctx
+}
+
+//RPC object of network
+func (net *Network) RPC() *RPC {
+	return net.rpc
 }
