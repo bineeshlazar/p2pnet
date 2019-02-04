@@ -94,7 +94,6 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 	go func() {
 		for {
-			time.Sleep(time.Second * 3)
 			peerIDs := n.host.Peerstore().PeersWithAddrs()
 			if len(peerIDs) > 0 {
 
@@ -117,6 +116,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 				}
 
 			}
+			time.Sleep(time.Second * 3)
 		}
 	}()
 
