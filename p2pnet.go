@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
@@ -76,7 +77,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		n.HandlePeerFound(*peerinfo)
 	}
 
-	fmt.Printf("Host ID is %s\n", n.host.ID().Pretty())
+	log.Printf("Host ID is %s\n", n.host.ID().Pretty())
 
 	//Save the our addresses
 	addrs := n.host.Addrs()
@@ -104,13 +105,13 @@ func NewNetwork(cfg *Config) (*Network, error) {
 					err := n.host.Connect(n.ctx, peer)
 					if err == nil {
 						addr, _ := pstore.InfoToP2pAddrs(&peer)
-						fmt.Println("Connected to ", addr)
+						log.Println("Connected to ", addr)
 						connected++
 					}
 				}
 
 				if connected > 0 {
-					fmt.Println("Advertising")
+					log.Println("Advertising")
 					n.Advertise(n.cfg.RendezvousString)
 					break
 				}
@@ -138,7 +139,7 @@ func (net *Network) InitMDNS() error {
 //Advertise a service to DHT
 func (net *Network) Advertise(service string) {
 	if net.dhtDiscovery == nil {
-		fmt.Println("DHT not initialized, skipping DHT advertise")
+		log.Println("DHT not initialized, skipping DHT advertise")
 	} else {
 		p2p.Advertise(net.ctx, net.dhtDiscovery, service)
 	}
@@ -158,7 +159,7 @@ func (net *Network) FindPeers(service string) (<-chan pstore.PeerInfo, error) {
 func (net *Network) HandlePeerFound(peer pstore.PeerInfo) {
 
 	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
-	fmt.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
+	log.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
 }
 
 //Addrs returns list of multi addresses we listen on
