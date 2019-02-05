@@ -1,9 +1,10 @@
-package p2pnet
+package p2pnet_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/bnsh12/p2pnet"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 )
 
@@ -12,14 +13,14 @@ var (
 	rendezvous = "p2pTest"
 )
 
-func initNetwork(host string, port int, rendezvous string) (*Network, error) {
-	cfg := &Config{
+func initNetwork(host string, port int, rendezvous string) (*p2pnet.Network, error) {
+	cfg := &p2pnet.Config{
 		ListenHost:       host,
 		ListenPort:       port,
 		RendezvousString: rendezvous,
 	}
 
-	net, err := NewNetwork(cfg)
+	net, err := p2pnet.NewNetwork(cfg)
 
 	return net, err
 }

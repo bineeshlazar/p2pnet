@@ -172,12 +172,6 @@ func (net *Network) Host() host.Host {
 	return net.host
 }
 
-//Discovery return low-level DHT discovery handle of network.
-//Most applications may not need this, they can use Advertise and FindPeers methods of Network
-func (net *Network) Discovery() *p2p.RoutingDiscovery {
-	return net.dhtDiscovery
-}
-
 //Context returns parent context of Network
 func (net *Network) Context() context.Context {
 	return net.ctx

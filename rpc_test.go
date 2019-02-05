@@ -1,4 +1,4 @@
-package p2pnet
+package p2pnet_test
 
 import (
 	"bytes"
