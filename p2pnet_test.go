@@ -84,7 +84,7 @@ func TestDHT(t *testing.T) {
 		t.Errorf("Provider could not connect to bootstrap(%s)", err)
 	}
 
-	provider.Advertise(serName)
+	provider.Discovery().Advertise(serName)
 
 	user, err := initNetwork(hostaddr, 4005, rendezvous)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestDHT(t *testing.T) {
 		t.Errorf("Provider could not connect to bootstrap(%s)", err)
 	}
 
-	pchan, err := user.FindPeers(serName)
+	pchan, err := user.Discovery().FindPeers(serName)
 	if err != nil {
 		t.Errorf("Could not find peers(%s)", err)
 	}

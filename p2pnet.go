@@ -3,16 +3,13 @@ package p2pnet
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
-	p2p "github.com/libp2p/go-libp2p-discovery"
 	host "github.com/libp2p/go-libp2p-host"
-	libp2pdht "github.com/libp2p/go-libp2p-kad-dht"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	multiaddr "github.com/multiformats/go-multiaddr"
@@ -20,13 +17,12 @@ import (
 
 //Network represents libp2p network layer.
 type Network struct {
-	ctx          context.Context
-	host         host.Host
-	cfg          *Config
-	dht          *libp2pdht.IpfsDHT
-	dhtDiscovery *p2p.RoutingDiscovery
-	addresses    []multiaddr.Multiaddr
-	rpc          *RPC
+	ctx       context.Context
+	host      host.Host
+	cfg       *Config
+	addresses []multiaddr.Multiaddr
+	rpc       *RPC
+	dht       *Discovery
 }
 
 //NewNetwork creates a network handle
@@ -58,17 +54,9 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		return nil, err
 	}
 
-	//Create dht and discovery handles
-	n.dht, err = libp2pdht.New(n.ctx, n.host)
+	n.dht, err = initDiscovery(n)
 	if err != nil {
-		return nil, err
-	}
-	n.dhtDiscovery = p2p.NewRoutingDiscovery(n.dht)
-
-	// Bootstrap the DHT. In the default configuration, this spawns a Background
-	// thread that will refresh the peer table every five minutes.
-	err = n.dht.Bootstrap(n.ctx)
-	if err != nil {
+		log.Println("Discovery object initialization failed")
 		return nil, err
 	}
 
@@ -112,7 +100,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 				if connected > 0 {
 					log.Println("Advertising")
-					n.Advertise(n.cfg.RendezvousString)
+					n.Discovery().Advertise(n.cfg.RendezvousString)
 					break
 				}
 
@@ -136,24 +124,6 @@ func (net *Network) InitMDNS() error {
 	return nil
 }
 
-//Advertise a service to DHT
-func (net *Network) Advertise(service string) {
-	if net.dhtDiscovery == nil {
-		log.Println("DHT not initialized, skipping DHT advertise")
-	} else {
-		p2p.Advertise(net.ctx, net.dhtDiscovery, service)
-	}
-}
-
-// FindPeers using DHT. Note that channel is not long standing.
-// It will get closed after each peer search
-func (net *Network) FindPeers(service string) (<-chan pstore.PeerInfo, error) {
-	if net.dhtDiscovery == nil {
-		return nil, errors.New("Invalid discovery object, DHT initialized?")
-	}
-	return net.dhtDiscovery.FindPeers(net.ctx, service)
-}
-
 //HandlePeerFound is the Notifee interface for mdns discovery.
 //It can be also called to update the peer info found via other ways
 func (net *Network) HandlePeerFound(peer pstore.PeerInfo) {
@@ -167,7 +137,7 @@ func (net *Network) Addrs() []multiaddr.Multiaddr {
 	return net.addresses
 }
 
-//Host of network
+//Host returns libp2p host handle. Most applications do not require this
 func (net *Network) Host() host.Host {
 	return net.host
 }
@@ -180,4 +150,9 @@ func (net *Network) Context() context.Context {
 //RPC object of network
 func (net *Network) RPC() *RPC {
 	return net.rpc
+}
+
+//Discovery object of network
+func (net *Network) Discovery() *Discovery {
+	return net.dht
 }
