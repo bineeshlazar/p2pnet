@@ -7,7 +7,6 @@ import (
 	"log"
 	"time"
 
-	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -18,11 +17,11 @@ import (
 //Network represents libp2p network layer.
 type Network struct {
 	ctx       context.Context
-	host      host.Host
 	cfg       *Config
 	addresses []multiaddr.Multiaddr
 	rpc       *RPC
 	dht       *Discovery
+	conn      *ConnMgr
 }
 
 //NewNetwork creates a network handle
@@ -43,18 +42,12 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.ListenHost, cfg.ListenPort))
 
-	// libp2p.New constructs a new libp2p Host.
-	// Other options can be added here.
-	n.host, err = libp2p.New(
-		n.ctx,
-		libp2p.ListenAddrs(sourceMultiAddr),
-		libp2p.Identity(prvKey),
-	)
+	n.conn, err = initConnMgr(n.ctx, sourceMultiAddr, prvKey)
 	if err != nil {
 		return nil, err
 	}
 
-	n.dht, err = initDiscovery(n)
+	n.dht, err = initDiscovery(n.ctx, n.Host())
 	if err != nil {
 		log.Println("Discovery object initialization failed")
 		return nil, err
@@ -65,13 +58,13 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		n.HandlePeerFound(*peerinfo)
 	}
 
-	log.Printf("Host ID is %s\n", n.host.ID().Pretty())
+	log.Printf("Host ID is %s\n", n.Host().ID().Pretty())
 
 	//Save the our addresses
-	addrs := n.host.Addrs()
+	addrs := n.Host().Addrs()
 	n.addresses = make([]multiaddr.Multiaddr, len(addrs))
 	for i, addr := range addrs {
-		ipfsAddr, err := multiaddr.NewMultiaddr("/p2p/" + n.host.ID().Pretty())
+		ipfsAddr, err := multiaddr.NewMultiaddr("/p2p/" + n.Host().ID().Pretty())
 		if err != nil {
 			panic(err)
 		}
@@ -79,18 +72,18 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		n.addresses[i] = peerAddr
 	}
 
-	n.rpc = initRPC(n.host, cfg.RendezvousString)
+	n.rpc = initRPC(n.Host(), cfg.RendezvousString)
 
 	go func() {
 		for {
-			peerIDs := n.host.Peerstore().PeersWithAddrs()
+			peerIDs := n.Host().Peerstore().PeersWithAddrs()
 			if len(peerIDs) > 0 {
 
 				connected := 0
 
 				for _, id := range peerIDs {
-					peer := n.host.Peerstore().PeerInfo(id)
-					err := n.host.Connect(n.ctx, peer)
+					peer := n.Host().Peerstore().PeerInfo(id)
+					err := n.conn.Connect(n.ctx, peer)
 					if err == nil {
 						addr, _ := pstore.InfoToP2pAddrs(&peer)
 						log.Println("Connected to ", addr)
@@ -100,7 +93,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 				if connected > 0 {
 					log.Println("Advertising")
-					n.Discovery().Advertise(n.cfg.RendezvousString)
+					n.Discovery().Advertise(n.ctx, n.cfg.RendezvousString)
 					break
 				}
 
@@ -115,7 +108,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 //InitMDNS initializes the MDNS discovery in the network
 func (net *Network) InitMDNS() error {
 
-	ser, err := discovery.NewMdnsService(net.ctx, net.host, time.Hour, net.cfg.RendezvousString)
+	ser, err := discovery.NewMdnsService(net.ctx, net.Host(), time.Hour, net.cfg.RendezvousString)
 	if err != nil {
 		return err
 	}
@@ -128,8 +121,8 @@ func (net *Network) InitMDNS() error {
 //It can be also called to update the peer info found via other ways
 func (net *Network) HandlePeerFound(peer pstore.PeerInfo) {
 
-	net.host.Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
-	log.Println("found", net.host.Peerstore().PeerInfo(peer.ID))
+	net.Host().Peerstore().AddAddrs(peer.ID, peer.Addrs, pstore.ProviderAddrTTL)
+	log.Println("found", peer.ID)
 }
 
 //Addrs returns list of multi addresses we listen on
@@ -139,7 +132,7 @@ func (net *Network) Addrs() []multiaddr.Multiaddr {
 
 //Host returns libp2p host handle. Most applications do not require this
 func (net *Network) Host() host.Host {
-	return net.host
+	return net.conn.host
 }
 
 //Context returns parent context of Network
