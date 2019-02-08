@@ -44,9 +44,9 @@ func TestMDNS(t *testing.T) {
 
 	//Check whether n2 found n1 via MDNS
 	peerFound := false
-	for _, id := range n2.Host().Peerstore().PeersWithAddrs() {
+	for _, id := range n2.Host.Peerstore().PeersWithAddrs() {
 
-		if id == n1.Host().ID() {
+		if id == n1.Host.ID() {
 			peerFound = true
 		}
 	}
@@ -55,8 +55,8 @@ func TestMDNS(t *testing.T) {
 		t.Errorf("Could not find peer n1 via MDNS")
 	}
 
-	n1.Host().Close()
-	n2.Host().Close()
+	n1.Close()
+	n2.Close()
 }
 
 func TestDHT(t *testing.T) {
@@ -75,39 +75,39 @@ func TestDHT(t *testing.T) {
 	}
 
 	bNodeInfo := pstore.PeerInfo{
-		ID:    bootnode.Host().ID(),
-		Addrs: bootnode.Host().Addrs(),
+		ID:    bootnode.Host.ID(),
+		Addrs: bootnode.Host.Addrs(),
 	}
 
-	err = provider.Host().Connect(provider.Context(), bNodeInfo)
+	err = provider.Connect(provider.Context(), bNodeInfo)
 	if err != nil {
 		t.Errorf("Provider could not connect to bootstrap(%s)", err)
 	}
 
-	provider.Discovery().Advertise(provider.Context(), serName)
+	provider.Router.Advertise(provider.Context(), serName)
 
 	user, err := initNetwork(hostaddr, 4005, rendezvous)
 	if err != nil {
 		t.Errorf("Could not initialize user")
 	}
 
-	err = user.Host().Connect(user.Context(), bNodeInfo)
+	err = user.Connect(user.Context(), bNodeInfo)
 	if err != nil {
 		t.Errorf("Provider could not connect to bootstrap(%s)", err)
 	}
 
-	pchan, err := user.Discovery().FindPeers(user.Context(), serName)
+	pchan, err := user.Router.FindPeers(user.Context(), serName)
 	if err != nil {
 		t.Errorf("Could not find peers(%s)", err)
 	}
 
 	peer := <-pchan
 
-	if peer.ID != provider.Host().ID() {
+	if peer.ID != provider.Host.ID() {
 		t.Errorf("could not find provider")
 	}
 
-	bootnode.Host().Close()
-	provider.Host().Close()
-	user.Host().Close()
+	bootnode.Close()
+	provider.Close()
+	user.Close()
 }

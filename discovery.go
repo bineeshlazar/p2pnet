@@ -11,15 +11,15 @@ import (
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 )
 
-//Discovery handles service advertising and discovery.
-type Discovery struct {
+//Router handles service advertising and discovery.
+type Router struct {
 	dht          *libp2pdht.IpfsDHT
 	dhtDiscovery *p2p.RoutingDiscovery
 }
 
-func initDiscovery(ctx context.Context, host host.Host) (*Discovery, error) {
+func initRouter(ctx context.Context, host host.Host) (*Router, error) {
 
-	d := &Discovery{}
+	d := &Router{}
 	var err error
 
 	//Create dht and discovery handles
@@ -42,12 +42,12 @@ func initDiscovery(ctx context.Context, host host.Host) (*Discovery, error) {
 }
 
 //Advertise a service to DHT
-func (d *Discovery) Advertise(ctx context.Context, service string) {
-	p2p.Advertise(ctx, d.dhtDiscovery, service)
+func (r *Router) Advertise(ctx context.Context, service string) {
+	p2p.Advertise(ctx, r.dhtDiscovery, service)
 }
 
 // FindPeers using DHT. Note that channel is not long standing.
 // It will get closed after each peer search
-func (d *Discovery) FindPeers(ctx context.Context, service string) (<-chan pstore.PeerInfo, error) {
-	return d.dhtDiscovery.FindPeers(ctx, service)
+func (r *Router) FindPeers(ctx context.Context, service string) (<-chan pstore.PeerInfo, error) {
+	return r.dhtDiscovery.FindPeers(ctx, service)
 }
