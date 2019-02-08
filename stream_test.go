@@ -11,7 +11,7 @@ import (
 )
 
 func handler(stream p2pnet.Stream) {
-	go io.Copy(stream, stream)
+	io.Copy(stream, stream)
 }
 
 func TestStream(t *testing.T) {
@@ -52,6 +52,8 @@ func TestStream(t *testing.T) {
 
 	go stream.Write(args)
 	stream.Read(reply)
+
+	stream.Reset()
 
 	if !bytes.Equal(reply, args) {
 		t.Error("Received wrong amount of bytes back!")
