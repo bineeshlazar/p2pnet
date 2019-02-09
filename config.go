@@ -20,6 +20,9 @@ type Config struct {
 
 	//BootstrapPeer is the multiaddress of bootstrap peer if there is any
 	BootstrapPeer multiaddr.Multiaddr
+
+	//File to save and read key file
+	KeyFile string
 }
 
 func parseFlags() *Config {
@@ -29,6 +32,7 @@ func parseFlags() *Config {
 	flag.StringVar(&c.RendezvousString, "rendezvous", "meetme", "Unique string to identify group of nodes. Share this with your friends to let them connect with you")
 	flag.StringVar(&c.ListenHost, "host", "0.0.0.0", "The bootstrap node host listen address\n")
 	flag.StringVar(&addr, "peer", "", "Adds a peer multiaddress to the bootstrap list")
+	flag.StringVar(&c.KeyFile, "keyfile", ".key.dat", "File to save and read key file")
 	flag.IntVar(&c.ListenPort, "port", 4001, "node listen port")
 
 	flag.Parse()

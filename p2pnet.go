@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -37,6 +38,25 @@ type Network struct {
 	Host host.Host
 }
 
+func readKey(keyfile string) (crypto.PrivKey, error) {
+
+	raw, err := ioutil.ReadFile(keyfile)
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.UnmarshalPrivateKey(raw)
+}
+
+func writeKey(key crypto.PrivKey, keyfile string) {
+	raw, err := crypto.MarshalPrivateKey(key)
+	if err != nil {
+		log.Printf("Could not write key to file (%s) ", err)
+	}
+
+	ioutil.WriteFile(keyfile, raw, 0640)
+}
+
 //NewNetwork creates a network handle
 func NewNetwork(cfg *Config) (*Network, error) {
 
@@ -44,13 +64,19 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 	n.ctx = context.Background()
 
-	// r := mrand.New(mrand.NewSource(int64(*port))) //Predictive ID
 	r := rand.Reader
 
-	// Creates a new RSA key pair for this host.
-	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	var prvKey crypto.PrivKey
+
+	// Check if we can retrieve key from file
+	prvKey, err := readKey(cfg.KeyFile)
 	if err != nil {
-		return nil, err
+		// Creates a new RSA key pair for this host.
+		prvKey, _, err = crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+		if err != nil {
+			return nil, err
+		}
+		writeKey(prvKey, cfg.KeyFile)
 	}
 
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.ListenHost, cfg.ListenPort))

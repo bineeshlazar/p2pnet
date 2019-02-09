@@ -1,6 +1,7 @@
 package p2pnet_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -110,4 +111,35 @@ func TestDHT(t *testing.T) {
 	bootnode.Close()
 	provider.Close()
 	user.Close()
+}
+
+func TestKeysave(t *testing.T) {
+	cfg := &p2pnet.Config{
+		KeyFile:          ".key.dat",
+		ListenHost:       hostaddr,
+		ListenPort:       4401,
+		RendezvousString: rendezvous,
+	}
+
+	host, err := p2pnet.NewNetwork(cfg)
+	if err != nil {
+		t.Errorf("Could not initialize host")
+	}
+
+	oldID := host.UUID
+
+	host.Close()
+
+	newhost, err := p2pnet.NewNetwork(cfg)
+	if err != nil {
+		t.Errorf("Could not initialize newhost")
+	}
+
+	os.Remove(cfg.KeyFile)
+
+	if oldID != newhost.UUID {
+		t.Errorf("IDs does not match")
+	}
+
+	newhost.Close()
 }
