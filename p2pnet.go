@@ -18,9 +18,10 @@ import (
 
 //Network represents libp2p network layer.
 type Network struct {
-	ctx       context.Context
-	cfg       *Config
-	addresses []multiaddr.Multiaddr
+	ctx           context.Context
+	cfg           *Config
+	addresses     []multiaddr.Multiaddr
+	bootstrapDone chan struct{}
 
 	//ID of this Host
 	UUID string
@@ -90,6 +91,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 	)
 
 	n.StreamMgr = &StreamMgr{host: n.Host}
+	n.bootstrapDone = make(chan struct{})
 
 	if err != nil {
 		return nil, err
@@ -142,6 +144,7 @@ func NewNetwork(cfg *Config) (*Network, error) {
 				if connected > 0 {
 					log.Println("Advertising")
 					n.Router.Advertise(n.ctx, n.cfg.RendezvousString)
+					close(n.bootstrapDone)
 					break
 				}
 
@@ -191,4 +194,12 @@ func (net *Network) Connect(ctx context.Context, peer pstore.PeerInfo) error {
 //Close shut down the network and services
 func (net *Network) Close() error {
 	return net.Host.Close()
+}
+
+//WaitForBootstrap blocks untill local peer is bootstrapped
+func (net *Network) WaitForBootstrap() {
+	select {
+	case <-net.bootstrapDone:
+		return
+	}
 }

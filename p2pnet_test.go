@@ -3,7 +3,6 @@ package p2pnet_test
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/bnsh12/p2pnet"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -41,7 +40,7 @@ func TestMDNS(t *testing.T) {
 
 	n2.InitMDNS()
 
-	time.Sleep(time.Millisecond * 500)
+	n2.WaitForBootstrap()
 
 	//Check whether n2 found n1 via MDNS
 	peerFound := false
