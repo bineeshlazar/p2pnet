@@ -103,8 +103,8 @@ func NewNetwork(cfg *Config) (*Network, error) {
 		return nil, err
 	}
 
-	if cfg.BootstrapPeer != nil {
-		peerinfo, _ := pstore.InfoFromP2pAddr(cfg.BootstrapPeer)
+	for _, addr := range cfg.BootstrapPeers {
+		peerinfo, _ := pstore.InfoFromP2pAddr(addr)
 		n.HandlePeerFound(*peerinfo)
 	}
 

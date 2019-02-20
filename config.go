@@ -19,7 +19,7 @@ type Config struct {
 	ListenPort int
 
 	//BootstrapPeer is the multiaddress of bootstrap peer if there is any
-	BootstrapPeer multiaddr.Multiaddr
+	BootstrapPeers []multiaddr.Multiaddr
 
 	//File to save and read key file
 	KeyFile string
@@ -38,7 +38,8 @@ func parseFlags() *Config {
 	flag.Parse()
 	if len(addr) > 0 {
 		var err error
-		c.BootstrapPeer, err = multiaddr.NewMultiaddr(addr)
+		maddr, err := multiaddr.NewMultiaddr(addr)
+		c.BootstrapPeers = []multiaddr.Multiaddr{maddr}
 		if err != nil {
 			panic(err)
 		}
