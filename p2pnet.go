@@ -9,6 +9,7 @@ import (
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	circuit "github.com/libp2p/go-libp2p-circuit"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -82,13 +83,15 @@ func NewNetwork(cfg *Config) (*Network, error) {
 
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", cfg.ListenHost, cfg.ListenPort))
 
-	// libp2p.New constructs a new libp2p Host.
 	// Other options can be added here.
-	n.Host, err = libp2p.New(
-		n.ctx,
-		libp2p.ListenAddrs(sourceMultiAddr),
-		libp2p.Identity(prvKey),
-	)
+	opts := []libp2p.Option{libp2p.ListenAddrs(sourceMultiAddr), libp2p.Identity(prvKey)}
+
+	if cfg.EnableRelay {
+		opts = append(opts, libp2p.EnableRelay(circuit.OptActive, circuit.OptHop, circuit.OptDiscovery))
+	}
+
+	// libp2p.New constructs a new libp2p Host.
+	n.Host, err = libp2p.New(n.ctx, opts...)
 
 	n.StreamMgr = &StreamMgr{host: n.Host}
 	n.bootstrapDone = make(chan struct{})

@@ -23,6 +23,9 @@ type Config struct {
 
 	//File to save and read key file
 	KeyFile string
+
+	//Enable/Disable circuit relay, enable if you are willing to volunteer as a relay point
+	EnableRelay bool
 }
 
 func parseFlags() *Config {
@@ -34,6 +37,7 @@ func parseFlags() *Config {
 	flag.StringVar(&addr, "peer", "", "Adds a peer multiaddress to the bootstrap list")
 	flag.StringVar(&c.KeyFile, "keyfile", ".key.dat", "File to save and read key file")
 	flag.IntVar(&c.ListenPort, "port", 4001, "node listen port")
+	flag.BoolVar(&c.EnableRelay, "relay", false, "enable circuit relay")
 
 	flag.Parse()
 	if len(addr) > 0 {
